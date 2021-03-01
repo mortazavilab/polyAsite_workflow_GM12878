@@ -8,7 +8,7 @@
 # directory where the samples-related data is stored
 # do NOT change this unless you have a clear reason
 samples_dir: samples
-atlas_dir: /share/crsp/lab/seyedam/share/C2C12_3reads/atlas
+atlas_dir: /share/crsp/lab/seyedam/share/GM12878_polyA_atlas/
 
 # directory that contains all scripts used during the pipeline
 script_dir: scripts
@@ -24,40 +24,40 @@ snakemake_script_dir: scripts/snakemake
 ################################################################################
 
 # organism
-organism: MusMusculus
-organism_name_db: Mus musculus
+organism: HomoSapiens
+organism_name_db: Homo Sapiens
 # Genome must not contain '.', as it will serve as key in mongoDB
-genome: GRCm38.96
+genome: GRCh38
 # name of the corresponding UCSC genome assembly to show the final tracks
 # (infos on the names can be found here: http://genome.ucsc.edu/cgi-bin/hgGateway)
-ucsc_organism: mouse
-ucsc_db: mm10
+ucsc_organism: human
+ucsc_db: hg38
 # download the genome as fasta file
 # and store it as given
 
-genome_fasta_url: "ftp://ftp.ensembl.org/pub/release-96/fasta/mus_musculus/dna/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz"
-genome_fasta_raw: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/Mus_musculus.GRCm38.dna.primary_assembly.fa.gz
-genome_fasta: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/Mus_musculus.GRCm38.96.dna_sm.primary_assembly.clean.fa
+genome_fasta_url: "ftp://ftp.ensembl.org/pub/release-99/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+genome_fasta_raw: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+genome_fasta: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/Homo_sapiens.GRCh38.dna.primary_assembly.clean.fa
 
 # download the genome annotation as gtf file
 # and store it as given
-annotation_dir: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/
-gene_anno_url: "ftp://ftp.ensembl.org/pub/release-96/gtf/mus_musculus/Mus_musculus.GRCm38.96.chr_patch_hapl_scaff.gtf.gz"
-gene_annotation: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/Mus_musculus.GRCm38.96.chr_patch_hapl_scaff.gtf
-gene_annotation_filtered: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/Mus_musculus.GRCm38.96.protein_coding.lincRNA.gtf
+annotation_dir: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/
+gene_anno_url: "ftp://ftp.ensembl.org/pub/release-99/gtf/homo_sapiens/Homo_sapiens.GRCh38.99.chr_patch_hapl_scaff.gtf.gz"
+gene_annotation: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/Homo_sapiens.GRCh38.99.chr_patch_hapl_scaff.gtf.gz
+gene_annotation_filtered: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/Homo_sapiens.GRCh38.99.protein_coding.lincRNA.gtf
 
 # Download chromosome sizes from UCSC for creating custom genome browser tracks
-ucsc_chromSizes_URL: "http://hgdownload.cse.ucsc.edu/goldenPath/mm10/bigZips/mm10.chrom.sizes"
-ucsc_chromSizes_file: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/mouse/annotation/Mus_musculus.GRCm38_UCSC.chrom_sizes
+ucsc_chromSizes_URL: "ftp://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.chrom.sizes"
+ucsc_chromSizes_file: /share/crsp/lab/seyedam/share/polyA_atlas_pipeline/human/annotation/hg38.chrom.sizes
 
 # Name under which the atlas will be published on the website
 # ATTENTION: for each organism, the release name should be unique!
 # Even in the case that only the gene annotation has changed!!
 # Release name must not contain '.', as it will serve as key in mongoDB
-atlas.release_name: c2c12
+atlas.release_name: GM12878
 
 # Filename of the design file (mandatory input file)
-atlas.samples_table: samples.tsv
+atlas.samples_table: GM12878_samples.tsv
 
 # filtered version of the annotation:
 # only transcript with a certain support level and of certain types
@@ -92,6 +92,9 @@ chromosome_names:
   17: chr17
   18: chr18
   19: chr19
+  20: chr20
+  21: chr21
+  22: chr22
   X: chrX
   Y: chrY
   MT: chrM
@@ -251,7 +254,7 @@ polyA_signals:
 #-------------------------------------------------------------------------------
 
 # cutoff, how much percent of clusters are required to have a poly(A) signal
-sample.BG_polyAsignal_cutoff: 50
+sample.BG_polyAsignal_cutoff: 90
 # regions, up- and downstream, around highly expressed 3' end sites to
 # determine lower expressed sites in order to cluster them to the higher
 # expressed one
