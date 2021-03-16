@@ -3,12 +3,16 @@ import random
 import string
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from snakemake.utils import listfiles
 from snakemake.utils import makedirs
 configfile: "config.yaml"
 # don't provide a default config file
 # to ensure that the executing person knows what it is doing
 # and provides the intended information
+
+
+samples_dir = Path(config["samples_dir"])
 
 
 def get_ds_patterns_for_ipAssignment(wildcards):
@@ -52,19 +56,45 @@ atlas_outputdir = os.path.join(config['atlas_dir'],
 ################################################################################
 # target rule
 ################################################################################
+
+# samples = [
+#     'GM12878rep1',
+#     'GM12878rep2'
+# ]
+
 rule finish:
     ##LOCAL##
     ##No Singularity support required##
     input:
-        # final_atlas = os.path.join(atlas_outputdir,
-        #                            "clusters.bed.gz")
+        # os.path.join(atlas_outputdir,
+        #              "3pSites.PAS.filtered.tsv.gz")
+        # os.path.join(atlas_outputdir, "clusters.merged.tsv.gz"),
+        # expand(os.path.join(atlas_outputdir,
+        #                     "{sample}.clusters." +
+        #                     config['ucsc_db'] + "."
+        #                     + config['atlas.release_name'] + ".bed.gz"), sample=samples.index)
         # prepro_cmplt = expand(os.path.join(config["samples_dir"],
         #                                    "{sample}",
         #                                    config['genome'],
         #                                    "{sample}.prepro_cmplt.txt"),
-        #                       sample=samples.index),
-        clst_cmplt = os.path.join(atlas_outputdir,
-                                  "clst_cmplt.txt"),
+        #                       sample=samples.index)
+        # expand(os.path.join(config["samples_dir"],
+        #                     "{sample}",
+        #                     config['genome'],
+        #                     "{sample}.3pSites.bed.seqs.gz"), sample=samples.index)
+        # expand(str(samples_dir / '{sample}' /
+        #            config['genome'] / '{sample}.trimmed.fastq.gz'), sample=samples)
+        # os.path.join(atlas_outputdir,
+        #              "atlas.clusters." + config['ucsc_db'] + "."
+        #              + config['atlas.release_name'] + ".bed.gz")
+        # expand(os.path.join(config["samples_dir"],
+        #                     "{sample}",
+        #                     config['genome'],
+        #                     "{sample}.reads.bed.gz"), sample=samples)
+        # final_atlas = os.path.join(atlas_outputdir,
+        #                            "clusters.bed.gz")
+        # clst_cmplt = os.path.join(atlas_outputdir,
+        #                           "clst_cmplt.txt"),
         tracks_cmplt = os.path.join(atlas_outputdir,
                                     "tracks_cmplt.txt")
 
@@ -209,6 +239,32 @@ rule get_filtered_annotation:
         > {output.filtered_anno}
         '''
 
+# TODO: download or create files with a rule
+rule trim_reads:
+    input:
+        fastq = str(samples_dir / '{sample}' /
+                    config['genome'] / '{sample}.fastq.gz'),
+        ref_polyA = 'polyA.fa.gz',
+        trueseq = 'truseq_rna.fa.gz',
+    params:
+        k = 13,
+        ktrim = 'r',
+        useshortkmers = 't',
+        mink = 5,
+        trimq = 10,
+        minlength = 20
+    output:
+        fastq = str(samples_dir / '{sample}' /
+                    config['genome'] / '{sample}.trimmed.fastq.gz'),
+    shell:
+        '''
+        bbduk.sh in={input.fastq} out={output.fastq} \
+        ref={input.ref_polyA},{input.trueseq} \
+        k={params.k} ktrim={params.ktrim} \
+        useshortkmers={params.useshortkmers} mink={params.mink} \
+        trimq={params.trimq} minlength={params.minlength}
+        '''
+
 rule bam2bed:
     #Singularity needed: samtools v1.8, python 2.7.11 or later##
     #check python modules: optparse, re, itertools, multiprocessing##
@@ -243,11 +299,16 @@ rule bam2bed:
         config['bam2bed.threads']
     shell:
         '''
-        (samtools view {input.bam} \
-        | python {input.script} \
-        --processors {threads} \
-        | gzip > {output.reads_bed}) 2>> {log}
+        python {input.script} --processors {threads} --bam {input.bam} \
+        | gzip > {output.reads_bed} 2>> {log}
         '''
+        # '''a
+        # (samtools view {input.bam} \
+        # | python {input.script} \
+        # --processors {threads})
+        # '''
+        #
+
 
 # -------------------------------------------------------------------------------
 # only consider unique mappers
@@ -606,9 +667,9 @@ rule pool_samples:
     ## Singularity needed: perl##
     ## Singularity provided: zavolab_minimal:1, not tested ##
     input:
-        dirs_atlas_created = touch(os.path.join(atlas_outputdir,
-                                                "logs",
-                                                "created_log_dir.out")),
+        dirs_atlas_created = os.path.join(atlas_outputdir,
+                                          "logs",
+                                          "created_log_dir.out"),
         files = expand(os.path.join(config["samples_dir"],
                                     "{sample}",
                                     config['genome'],
@@ -948,9 +1009,15 @@ rule cluster_sites:
         (perl {input.script} \
         --upstream={params.upstream_ext} \
         --downstream={params.downstream_ext} \
-        {input.table_filtered} \
-        | gzip > {output.primary_clusters}) 2> {log}
+        {input.table_filtered} | gzip > {output.primary_clusters}) 2> {log}
         '''
+
+        # '''
+        # perl -d {input.script} \
+        # --upstream={params.upstream_ext} \
+        # --downstream={params.downstream_ext} \
+        # {input.table_filtered}
+        # '''
 
 # -------------------------------------------------------------------------------
 # get number of primary clusters
@@ -1094,7 +1161,7 @@ rule annotate_gene_features:
                      "annotate_clusters.log")
     shell:
         '''
-        python -m pdb -c c {input.script} \
+        python {input.script} \
         --verbose \
         --gtf {input.anno} \
         --ds-range {params.downstream_region} \
@@ -1156,9 +1223,9 @@ rule make_bed:
         script = os.path.join(config["script_dir"],
                               "cjh-bed-per-sample-from-clusters.py")
     output:
-        samples_bed = os.path.join("{path}",
+        samples_bed = os.path.join(atlas_outputdir,
                                    "{sample}.clusters.bed.gz"),
-        samples_temp = temp(os.path.join("{path}",
+        samples_temp = temp(os.path.join(atlas_outputdir,
                                          "{sample}.clusters.bed"))
     singularity:
         "docker://python:3.6.9-slim-stretch"
@@ -1190,10 +1257,10 @@ rule make_bed:
 rule sort_bed:
     ## Singularity: bedtools ##
     input:
-        bed = os.path.join("{path}",
+        bed = os.path.join(atlas_outputdir,
                            "{sample}.clusters.bed.gz")
     output:
-        sorted_bed = os.path.join("{path}",
+        sorted_bed = os.path.join(atlas_outputdir,
                                   "{sample}.clusters." +
                                   config['ucsc_db'] + "."
                                   + config['atlas.release_name'] + ".bed.gz")
@@ -1393,10 +1460,6 @@ rule sort_bed_4_big:
                                    "logs",
                                    "cluster_logs",
                                    "{sample}.log")
-    log:
-        os.path.join(atlas_outputdir,
-                     "logs",
-                     "{sample}.log")
     shell:
         '''
         sortBed \
@@ -1425,10 +1488,6 @@ rule prepare_bigWig:
                                    "logs",
                                    "cluster_logs",
                                    "bed2bigWig.log")
-    log:
-        os.path.join(atlas_outputdir,
-                     "logs",
-                     "bed2bigWig.log")
     shell:
         '''
         bedGraphToBigWig \

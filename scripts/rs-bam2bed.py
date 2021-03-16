@@ -5,16 +5,22 @@ import re
 import itertools
 import multiprocessing
 import time
+from subprocess import Popen, PIPE
 
 max_processors = 1
-#def __init__(self):
+# def __init__(self):
 
-parser = optparse.OptionParser("usage: %prog -p [processors, optional]")
-parser.add_option("-p", "--processors", dest="processors", type="int", help="Number of processors to use", default=1)
+parser = optparse.OptionParser(
+    "usage: %prog -b [bam] -p [processors, optional]")
+parser.add_option("-b", "--bam", dest="bam",
+                  help="bam", metavar="FILE")
+parser.add_option("-p", "--processors", dest="processors",
+                  type="int", help="Number of processors to use", default=1)
 
 (options, args) = parser.parse_args(sys.argv)
 if None in options.__dict__.values():
-    parser.error("Incorrect number of arguments. Did you specify the number of cores?")
+    parser.error(
+        "Incorrect number of arguments. Did you specify the number of cores?")
     sys.exit(-1)
 else:
     if options.processors >= 1:
@@ -23,19 +29,26 @@ else:
 
 def align():
     ts = time.time()
-    ### Multiprocessing ### 
+    ### Multiprocessing ###
     pool = multiprocessing.Pool(max_processors)
     ### THIS WAS MULTIPROCESSING ###
 
-    #sam_tuples = readfile(input_sam, "\t")
+    # sam_tuples = readfile(input_sam, "\t")
     count = 0
     data_lines = []
     batch_size = 100000
 
-    for sam_line in sys.stdin:
+    process = Popen(['samtools', 'view', options.bam],
+                    stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+    for sam_line in process.stdout:
+        sam_line = sam_line.decode("utf-8")
+
         if sam_line[0] == "@":
             continue
-        sam_tuple = tuple(sam_line.split("\t"))
+
+        sam_tuple = tuple(sam_line.strip().split("\t"))
+
         data_lines.append(sam_tuple)
         if count == batch_size:
             res = pool.map(generate_bed_line, data_lines, max_processors)
@@ -50,6 +63,7 @@ def align():
         res = pool.map(generate_bed_line, data_lines, max_processors)
         for r in res:
             print(r)
+
 
 def generate_bed_line(sam):
 
@@ -66,27 +80,26 @@ def generate_bed_line(sam):
         elif sam[i].startswith("NH:"):
             # store number of mappings for that read
             read_weight = 1.0 / float(sam[i].replace("NH:i:", ""))
-    
-    
-    # CONSTANTS
-    BED_CHR=0
-    BED_START=1
-    BED_STOP=2
-    BED_READ=3
-    BED_SCORE=4
-    BED_STRAND=5
-    BED_MID=6
 
-    SAM_READ_ID=0
-    SAM_FLAG=1
-    SAM_CHR=2
-    SAM_START=3
+    # CONSTANTS
+    BED_CHR = 0
+    BED_START = 1
+    BED_STOP = 2
+    BED_READ = 3
+    BED_SCORE = 4
+    BED_STRAND = 5
+    BED_MID = 6
+
+    SAM_READ_ID = 0
+    SAM_FLAG = 1
+    SAM_CHR = 2
+    SAM_START = 3
     SAM_SCORE = 4
-    SAM_MID = 5 # aka cigar string
-    SAM_STAR = 6 # next entry on same chromosome?
-    SAM__ = 7 # mate info
-    SAM__ = 8 # mate info
-    SAM_READ=9
+    SAM_MID = 5  # aka cigar string
+    SAM_STAR = 6  # next entry on same chromosome?
+    SAM__ = 7  # mate info
+    SAM__ = 8  # mate info
+    SAM_READ = 9
     SAM_STAR = 10
     SAM__ = 42
     SAM_INDEX_SPACE = sam_index_space_pos
@@ -94,8 +107,8 @@ def generate_bed_line(sam):
 
     # 5th digit in SAM_FLAG in binary format tells the strand: 0 -> plus, 1 -> minus
 
-    #Now reading in the sam_tuples sequentially.
-    #Need to convert this in some kind of bed format
+    # Now reading in the sam_tuples sequentially.
+    # Need to convert this in some kind of bed format
 
     MID_length = get_match_length(sam[SAM_MID])
 
@@ -117,15 +130,13 @@ def generate_bed_line(sam):
     bed_line += str(int(sam[SAM_START])-1+MID_length)+"\t"
     bed_line += sam[SAM_READ_ID]+"\t"
     # the read weight is later on overwritten by the edit distance
-    bed_line += str(read_weight) +"\t"
+    bed_line += str(read_weight) + "\t"
     bed_line += strand
 
+    # At this point, the bed file is almost complete, just needs the MMID
+    # Make a tuple with it!
 
-    #At this point, the bed file is almost complete, just needs the MMID
-    #Make a tuple with it!
-
-    bed = bed_line.split("\t")             
-
+    bed = bed_line.split("\t")
 
     g_length = MID_length
 
@@ -137,7 +148,7 @@ def generate_bed_line(sam):
     soft_clipped_start = 0
     soft_clipped_end = 0
     match_splitted = re.split(r'(\d+)', sam[SAM_MID])
-    match_splitted.pop(0) # re produces a weird '' as elem 0  ... 
+    match_splitted.pop(0)  # re produces a weird '' as elem 0  ...
     if match_splitted[1] == "S":
         soft_clipped_start = match_splitted[0]
     if match_splitted[-1] == "S":
@@ -158,10 +169,10 @@ def generate_bed_line(sam):
         if item == '':
             exploded_MID.remove(item)
 
-    ### Do alignment read vs genome
+    # Do alignment read vs genome
     for i in range(int(len(exploded_MID)/2)):
         number = int(exploded_MID[i*2])
-        type = exploded_MID[i*2 +1]
+        type = exploded_MID[i*2 + 1]
 
         # no need to process type "N" at this point
         # because currently the genomic seq anyways
@@ -170,7 +181,7 @@ def generate_bed_line(sam):
             # read and reference were aligned
             for _ in itertools.repeat(None, number):
                 G.append(g.pop(0))
-                R.append(r.pop(0))                        
+                R.append(r.pop(0))
         elif type == "I":
             # nucleotides in read that are not there in the reference
             for _ in itertools.repeat(None, number):
@@ -181,7 +192,6 @@ def generate_bed_line(sam):
             for _ in itertools.repeat(None, number):
                 G.append(g.pop(0))
                 R.append("-")
-
 
     mismatch = sam[SAM_MISMATCHES]
     mismatch = mismatch.split(":")[-1]
@@ -197,7 +207,7 @@ def generate_bed_line(sam):
     for c in mismatch_splitted:
 
         if c == '':
-            continue # Skip c and this iteration when this happens
+            continue  # Skip c and this iteration when this happens
 
         # Skip the next G[pointer] that is not a dash
         if c.isdigit():
@@ -217,21 +227,19 @@ def generate_bed_line(sam):
             # skip gaps in the reference because insertions
             # are not present in the mismatch string
             while G[pointer] == '-':
-                pointer += 1 
+                pointer += 1
             # exchange question mark in the reference
-            # two possible reasons: 
+            # two possible reasons:
             # 1. mismatch; 2. deletion
             G.pop(pointer)
             G.insert(pointer, c)
-            pointer+=1
-
+            pointer += 1
 
     # for the MMID, track the positions of the mismatches and deletions
     # final MMID looks like:
     # 15MATIGDCDT12 (15 matches -> 1 Mismatch( A ref, T in read) -> 1 insertion (G in read) -> 1 deletion (C in reference) -> 1 deletion (T in reference) -> 12 matches
     match_count = 0
     MMID = ""
-
 
     g_index = 0
     r_index = 0
@@ -277,16 +285,18 @@ def generate_bed_line(sam):
     return new_file_line
 
 # Parses a string containing Matches (M) and InDels (I and D) and returns the number of positions represented by that string
-def get_match_length( match_string):
+
+
+def get_match_length(match_string):
     number_string = ""
     sequence_length = 0
 
     # the "r" in re.split(r...) means that the pattern is a raw string literal
     # so no escaping is done by python with the string
-    # in the context of patterns this is helpful because it makes it 
+    # in the context of patterns this is helpful because it makes it
     # obsolete to escape every backslash with another backslash
     match_splitted = re.split(r'(\d+)', match_string)
-    match_splitted.pop(0) # re produces a weird '' as elem 0  ... 
+    match_splitted.pop(0)  # re produces a weird '' as elem 0  ...
 
     for i in range(int(len(match_splitted)/2)):
         value = match_splitted[i*2]
@@ -301,5 +311,5 @@ def get_match_length( match_string):
 
     return sequence_length
 
-                
+
 align()

@@ -19,6 +19,8 @@ script_dir: scripts
 # as these scripts are not executed within a Singularity container
 snakemake_script_dir: scripts/snakemake
 
+star_index: /share/crsp/lab/seyedam/share/common/human/star_index/
+
 ################################################################################
 # information for the run
 ################################################################################
@@ -254,7 +256,7 @@ polyA_signals:
 #-------------------------------------------------------------------------------
 
 # cutoff, how much percent of clusters are required to have a poly(A) signal
-sample.BG_polyAsignal_cutoff: 90
+sample.BG_polyAsignal_cutoff: 50
 # regions, up- and downstream, around highly expressed 3' end sites to
 # determine lower expressed sites in order to cluster them to the higher
 # expressed one
