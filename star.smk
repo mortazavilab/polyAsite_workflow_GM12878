@@ -36,7 +36,7 @@ rule star_index:
 rule star_align:
     input:
         fq1 = str(samples_dir / '{sample}' /
-                  config['genome'] / '{sample}.trimmed.fastq.gz')
+                  config['genome'] / '{sample}.trimmed.polyA_filtered.fastq.gz')
     output:
         bam = samples_dir / '{sample}' / \
             config['genome'] / 'Aligned.sortedByCoord.out.bam'

@@ -7,8 +7,8 @@
 
 # directory where the samples-related data is stored
 # do NOT change this unless you have a clear reason
-samples_dir: samples
-atlas_dir: /share/crsp/lab/seyedam/share/GM12878_polyA_atlas/
+samples_dir: samples_polyA
+atlas_dir: /share/crsp/lab/seyedam/share/GM12878_polyA_atlas_v2/
 
 # directory that contains all scripts used during the pipeline
 script_dir: scripts

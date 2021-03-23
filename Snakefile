@@ -69,10 +69,10 @@ rule finish:
         # os.path.join(atlas_outputdir,
         #              "3pSites.PAS.filtered.tsv.gz")
         # os.path.join(atlas_outputdir, "clusters.merged.tsv.gz"),
-        # expand(os.path.join(atlas_outputdir,
-        #                     "{sample}.clusters." +
-        #                     config['ucsc_db'] + "."
-        #                     + config['atlas.release_name'] + ".bed.gz"), sample=samples.index)
+        expand(os.path.join(atlas_outputdir,
+                            "{sample}.clusters." +
+                            config['ucsc_db'] + "."
+                            + config['atlas.release_name'] + ".bed.gz"), sample=samples.index)
         # prepro_cmplt = expand(os.path.join(config["samples_dir"],
         #                                    "{sample}",
         #                                    config['genome'],
@@ -93,10 +93,10 @@ rule finish:
         #                     "{sample}.reads.bed.gz"), sample=samples)
         # final_atlas = os.path.join(atlas_outputdir,
         #                            "clusters.bed.gz")
-        # clst_cmplt = os.path.join(atlas_outputdir,
+        # # clst_cmplt = os.path.join(atlas_outputdir,
         #                           "clst_cmplt.txt"),
-        tracks_cmplt = os.path.join(atlas_outputdir,
-                                    "tracks_cmplt.txt")
+        # tracks_cmplt = os.path.join(atlas_outputdir,
+        #                             "tracks_cmplt.txt")
 
 ################################################################################
 # individual rules (if possible in chronological order)
@@ -239,11 +239,29 @@ rule get_filtered_annotation:
         > {output.filtered_anno}
         '''
 
+
+rule filter_reads_with_polyA_tail:
+    input:
+        fastq = str(samples_dir / '{sample}' /
+                    config['genome'] / '{sample}.fastq.gz')
+    params:
+        pattern = "A" * 18,
+        mismatch = 0
+    output:
+        fastq = str(samples_dir / '{sample}' /
+                    config['genome'] / '{sample}.polyA_filtered.fastq.gz')
+    shell:
+        '''
+        seqkit grep --by-seq --max-mismatch {params.mismatch} \
+        --pattern {params.pattern} {input.fastq} | gzip > {output.fastq}
+        '''
+
+
 # TODO: download or create files with a rule
 rule trim_reads:
     input:
         fastq = str(samples_dir / '{sample}' /
-                    config['genome'] / '{sample}.fastq.gz'),
+                    config['genome'] / '{sample}.polyA_filtered.fastq.gz'),
         ref_polyA = 'polyA.fa.gz',
         trueseq = 'truseq_rna.fa.gz',
     params:
@@ -255,7 +273,7 @@ rule trim_reads:
         minlength = 20
     output:
         fastq = str(samples_dir / '{sample}' /
-                    config['genome'] / '{sample}.trimmed.fastq.gz'),
+                    config['genome'] / '{sample}.trimmed.polyA_filtered.fastq.gz'),
     shell:
         '''
         bbduk.sh in={input.fastq} out={output.fastq} \
